@@ -1,0 +1,12 @@
+{
+  "name": "ecommerce-kb-bot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types test/order_decision.test.ts",
+    "start": "node --experimental-strip-types src/order_update_bot.ts"
+  },
+  "dependencies": { "openai": "^4.80.0", "zod": "^3.24.1" },
+  "devDependencies": { "typescript": "^5.7.2" }
+}
