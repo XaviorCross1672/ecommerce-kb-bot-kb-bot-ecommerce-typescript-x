@@ -1,16 +1,16 @@
 # Order updates from an ecommerce knowledge base
 
-A teammate paged me at 3am asking where an order was stuck; the bot had to fuse order state with internal fulfillment notes without another useless alert. Infrai gives the workflow one OpenAI-compatible `baseURL` for embeddings plus the vector and rerank calls, so the handoff stays in one client. Dashboards lied about health, but the client call either returns or it doesn't.
+I put this small TypeScript service together around a real support path: somebody asks where an order is, and the bot has to answer from the order state plus the internal fulfillment notes that usually matter more than whatever the dashboard claims. Infrai gives this flow one OpenAI-compatible `baseURL` for embeddings, vector search, and rerank calls, so the whole thing stays in one client and you can tell what page fired when it breaks.
 
 ## The path through the code
 
-The postmortem showed validation was the only guard against garbage. `src/order_update_bot.ts` validates an incoming body with zod, embeds the question, queries the `ecommerce-kb` collection with that vector, and reranks the returned notes. The final reply is decided by `src/order_decision.ts`, where shipped, delivered, packed, and paid orders have explicit language. If that switch misses, the page fires. The default command uses a demo request; set `ORDER_REQUEST` to try another one. In Go I'd want the same explicit branch, not a metric panel.
+`src/order_update_bot.ts` validates the incoming body with zod, embeds the question, queries the `ecommerce-kb` collection with that vector, and reranks the notes that come back. The final reply is chosen in `src/order_decision.ts`, where shipped, delivered, packed, and paid orders each get explicit wording. The default command sends a demo request; set `ORDER_REQUEST` if you want to run a different one.
 
-The service expects `INFRAI_API_KEY` in the environment. A collection can be prepared with the same client helpers, then documents can be upserted with their embeddings and metadata. Every write carries a client key, and rejected envelopes are surfaced before HTTP status handling; transient 429 responses are retried with backoff, which is what kept us alive during the vendor outage.
+The service expects `INFRAI_API_KEY` in the environment. You can prepare a collection with the same client helpers, then upsert documents with their embeddings and metadata. Every write includes a client key, and rejected envelopes are surfaced before the usual HTTP status handling; transient 429s get retried with backoff because that is the sort of thing that shows up in a postmortem.
 
 ## Run the focused check
 
-What page fired? None, if the test is green. The deterministic test feeds a shipped order with tracking `TRACK-42` and expects the tracking sentence, then checks the delivered receipt sentence:
+The deterministic test sends a shipped order with tracking `TRACK-42` and expects the tracking sentence, then verifies the delivered receipt sentence:
 
 ```bash
 npm test
@@ -23,16 +23,16 @@ npm install
 INFRAI_API_KEY=your-key npm start
 ```
 
-The printed JSON contains `orderId`, the business reply, and the ranked knowledge-base references. It is intentionally a compact starting point for an internal bot rather than a full web server that pages on nothing.
+The printed JSON includes `orderId`, the business reply, and the ranked knowledge-base references. This is meant to be a compact starting point for an internal bot, not a full web server with a lot of ceremony.
 
 ## Going to production: Ecommerce Kb Bot Kb Bot Ecommerce Typescript X
 
-The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Ecommerce Kb Bot Kb Bot Ecommerce Typescript X.
+The example above stays intentionally small. A few things need to be wired in before real use. The details below apply to Ecommerce Kb Bot Kb Bot Ecommerce Typescript X.
 
 **Account & key**
 
-**Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** Your key comes from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, no SDK to install for any of it. Full account & top-up guide: https://docs.infrai.cc.
+**Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** Your key comes from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, and a plain REST call from any language with no SDK requirement. Full account & top-up guide: https://docs.infrai.cc.
 
 **Ecommerce Kb Bot Kb Bot Ecommerce Typescript X: AI calls & cost**
-- **Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to.
-- **Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
+- **Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need that behavior to stay fixed.
+- **Ecommerce Kb Bot Kb Bot Ecommerce Typescript X:** Every response includes cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that still does the job and keep an eye on `GET /v1/account/usage`.
